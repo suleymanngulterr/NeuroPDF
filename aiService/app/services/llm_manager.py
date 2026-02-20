@@ -1,5 +1,5 @@
 # backend/app/services/llm_manager.py
-
+import hashlib 
 from fastapi import HTTPException
 from typing import Literal, Optional
 
@@ -8,6 +8,13 @@ from .local_llm_service import analyze_text_with_local_llm  # yerel LLM tarafı
 
 LLMProvider = Literal["cloud", "local"]
 CloudMode = Literal["flash", "pro"]
+
+_SUMMARY_CACHE = {}
+
+def _generate_cache_key(text: str, prompt: str, provider: str, mode: str) -> str:
+    """Metin, prompt ve model kombinasyonundan eşsiz bir anahtar üretir."""
+    raw_string = f"{text}_{prompt}_{provider}_{mode}"
+    return hashlib.sha256(raw_string.encode('utf-8')).hexdigest()
 
 def summarize_text(
     text: str,
@@ -18,14 +25,26 @@ def summarize_text(
     if not text or not text.strip():
         raise HTTPException(status_code=400, detail="Boş içerik gönderildi.")
 
+    # --- 1. ADIM: CACHE KONTROLÜ ---
+    cache_key = _generate_cache_key(text, prompt_instruction, llm_provider, mode)
+    if cache_key in _SUMMARY_CACHE:
+        print(f"✅ CACHE HIT: Özet önbellekten getirildi. LLM çağrısı engellendi! ({llm_provider})")
+        return _SUMMARY_CACHE[cache_key]
+
+    # --- 2. ADIM: CACHE MISS (LLM'E GİT) ---
+    print(f"⚠️ CACHE MISS: Özet üretiliyor... ({llm_provider})")
+    result = ""
     if llm_provider == "cloud":
-        return ai_service.gemini_generate(text, prompt_instruction, mode=mode)
+        result = ai_service.gemini_generate(text, prompt_instruction, mode=mode)
+    elif llm_provider == "local":
+        res = analyze_text_with_local_llm(text, task="summarize", instruction=prompt_instruction)
+        result = res.get("summary", "") or "Local LLM yanıt üretmedi."
+    else:
+        raise HTTPException(status_code=400, detail="Geçersiz llm_provider. 'cloud' veya 'local' olmalı.")
 
-    if llm_provider == "local":
-        result = analyze_text_with_local_llm(text, task="summarize", instruction=prompt_instruction)
-        return result.get("summary", "") or "Local LLM yanıt üretmedi."
-
-    raise HTTPException(status_code=400, detail="Geçersiz llm_provider. 'cloud' veya 'local' olmalı.")
+    # --- 3. ADIM: SONUCU CACHE'E KAYDET ---
+    _SUMMARY_CACHE[cache_key] = result
+    return result
 
 
 def chat_over_pdf(

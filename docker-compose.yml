@@ -54,12 +54,15 @@ services:
     environment:
       REDIS_URL: "redis://redis_cache:6379"
       # AI Servisi Ollama ile konuşacaksa host adresi:
-      # OLLAMA_HOST: "http://ollama:11434"
+      OLLAMA_HOST: "http://ollama:11434"
+      OLLAMA_MODEL: "phi3:mini"
     env_file:
       - ./aiService/.env
     depends_on:
       redis_cache:
         condition: service_healthy
+      ollama:
+        condition: service_started
     restart: unless-stopped
     networks:
       - app_network
@@ -76,7 +79,8 @@ services:
     environment:
       PYTHONPATH: /app
       REDIS_URL: redis://redis_cache:6379
-      # OLLAMA_HOST: "http://ollama:11434"
+      OLLAMA_HOST: "http://ollama:11434"
+      OLLAMA_MODEL: "phi3:mini"
     env_file:
       - ./aiService/.env
     depends_on:
@@ -85,6 +89,8 @@ services:
       aiservice:
         condition: service_started
       backend:
+        condition: service_started
+      ollama:
         condition: service_started
     restart: unless-stopped
     networks:
@@ -120,6 +126,7 @@ services:
     volumes:
       - ollama_storage:/root/.ollama
     # Eğer GPU yoksa aşağıdaki 'deploy' kısmını komple silmelisin.
+    # GPU varsa yorum satırlarını kaldırın:
     # deploy:
     #   resources:
     #     reservations:
@@ -139,8 +146,8 @@ services:
 volumes:
   shared_uploads:
     driver: local
-  # ollama_storage:
-  #   driver: local
+  ollama_storage:
+    driver: local
   frontend_node_modules:
     driver: local
 

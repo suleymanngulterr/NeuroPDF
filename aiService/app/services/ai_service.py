@@ -150,8 +150,9 @@ def create_pdf_chat_session(
         "filename": filename or "uploaded.pdf",
         "history": [],
         "created_at": time.time(),
-        "llm_provider": llm_provider, # Tercihi kaydet
-        "mode": mode,                 # Tercihi kaydet
+        "llm_provider": llm_provider,
+        "mode": mode,                 
+        "qa_cache": {} # YENİ: Bu oturumdaki aynı soruları yakalamak için cache
     }
     return session_id
 

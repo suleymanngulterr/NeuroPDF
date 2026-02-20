@@ -7,8 +7,13 @@ redis
 google-generativeai
 PyPDF2
 zemberek-python
+zeyrek
 httpx
 pydantic-settings  
 python-dotenv
 gTTS
 ollama
+nltk
+requests
+pymupdf
+pillow
